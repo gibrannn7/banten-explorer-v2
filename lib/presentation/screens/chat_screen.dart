@@ -74,15 +74,6 @@ class ChatScreen extends StatelessWidget {
                                   width: 40,
                                   height: 40,
                                 ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Sedang mencari info...',
-                                  style: TextStyle(
-                                    color: Colors.blue.shade700,
-                                    fontSize: 14,
-                                    fontStyle: FontStyle.italic,
-                                  ),
-                                ),
                               ],
                             ),
                           ),
