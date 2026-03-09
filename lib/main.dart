@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:banten_explorer/core/network/api_client.dart';
 import 'package:banten_explorer/data/repositories/chat_repository_impl.dart';
 import 'package:banten_explorer/presentation/services/speech_service.dart';
+import 'package:banten_explorer/presentation/services/tts_service.dart'; // <-- IMPOR BARU
 import 'package:banten_explorer/presentation/providers/chat_provider.dart';
 import 'package:banten_explorer/presentation/screens/chat_screen.dart';
 
@@ -70,6 +71,7 @@ class BantenExplorerApp extends StatelessWidget {
       firestore: firestore,
     );
     final speechService = SpeechService();
+    final ttsService = TtsService(); // <-- INISIALISASI SERVICE TTS
 
     return MultiProvider(
       providers: [
@@ -77,6 +79,7 @@ class BantenExplorerApp extends StatelessWidget {
           create: (_) => ChatProvider(
             chatRepository: chatRepository,
             speechService: speechService,
+            ttsService: ttsService, // <-- INJEKSI KE PROVIDER
           ),
         ),
       ],

@@ -3,17 +3,30 @@ import 'package:flutter/material.dart';
 import 'package:banten_explorer/domain/entities/chat_entity.dart';
 import 'package:banten_explorer/domain/repositories/chat_repository.dart';
 import 'package:banten_explorer/presentation/services/speech_service.dart';
+import 'package:banten_explorer/presentation/services/tts_service.dart';
 
 class ChatProvider extends ChangeNotifier {
   final ChatRepository chatRepository;
   final SpeechService speechService;
+  final TtsService ttsService;
+
+  // FITUR BARU: Melacak ID pesan yang sedang diputar
+  String? _playingMessageId;
+  String? get playingMessageId => _playingMessageId;
 
   ChatProvider({
     required this.chatRepository,
     required this.speechService,
+    required this.ttsService,
   }) {
     _initSpeech();
     _listenToHistory();
+
+    // Reset state play/stop ketika audio alami selesai
+    ttsService.setCompletionHandler(() {
+      _playingMessageId = null;
+      notifyListeners();
+    });
   }
 
   List<ChatEntity> _messages = [];
@@ -41,8 +54,28 @@ class ChatProvider extends ChangeNotifier {
     });
   }
 
+  // FITUR BARU: Toggle Play / Stop berdasarkan ID Pesan
+  Future<void> toggleAudio(String messageId, String text) async {
+    if (_playingMessageId == messageId) {
+      // Jika yang di-klik adalah pesan yang sedang main -> STOP
+      await ttsService.stop();
+      _playingMessageId = null;
+      notifyListeners();
+    } else {
+      // Jika klik pesan lain -> STOP yang lama, PLAY yang baru
+      await ttsService.stop();
+      _playingMessageId = messageId;
+      notifyListeners();
+      await ttsService.speak(text);
+    }
+  }
+
   Future<void> sendMessage(String text) async {
     if (text.trim().isEmpty) return;
+
+    // Hentikan suara AI jika user mengirim pesan baru
+    await ttsService.stop();
+    _playingMessageId = null;
 
     final userMessage = ChatEntity(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -51,19 +84,14 @@ class ChatProvider extends ChangeNotifier {
       timestamp: DateTime.now(),
     );
 
-    // KUNCI PERBAIKAN (OPTIMISTIC UPDATE): 
-    // Masukkan pesan ke UI seketika sebelum menunggu Firestore/Server
     _messages.insert(0, userMessage);
     _isLoading = true;
     notifyListeners();
 
-    // Menyimpan ke Firestore
     await chatRepository.saveChatToHistory(userMessage);
 
     try {
       final botResponse = await chatRepository.sendMessageToServer(text);
-      
-      // Simpan respons bot ke Firestore
       await chatRepository.saveChatToHistory(botResponse);
     } catch (e) {
       final errorMessage = ChatEntity(
@@ -72,10 +100,8 @@ class ChatProvider extends ChangeNotifier {
         isUser: false,
         timestamp: DateTime.now(),
       );
-      // Tampilkan error jika koneksi Python terputus
       await chatRepository.saveChatToHistory(errorMessage);
     } finally {
-      // Matikan animasi loading Lottie
       _isLoading = false;
       notifyListeners();
     }
@@ -90,6 +116,10 @@ class ChatProvider extends ChangeNotifier {
       }
       notifyListeners();
     } else {
+      // Hentikan suara AI jika user menyalakan mikrofon
+      await ttsService.stop();
+      _playingMessageId = null;
+
       _isListening = true;
       _recognizedText = '';
       notifyListeners();
@@ -104,6 +134,7 @@ class ChatProvider extends ChangeNotifier {
   @override
   void dispose() {
     _chatSubscription?.cancel();
+    ttsService.stop();
     super.dispose();
   }
 }

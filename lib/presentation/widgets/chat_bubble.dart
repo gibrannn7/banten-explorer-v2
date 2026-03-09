@@ -1,8 +1,12 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:carousel_slider/carousel_slider.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:provider/provider.dart';
 import 'package:banten_explorer/domain/entities/chat_entity.dart';
 import 'package:banten_explorer/presentation/widgets/map_preview_widget.dart';
+import 'package:banten_explorer/presentation/providers/chat_provider.dart';
 
 class ChatBubble extends StatefulWidget {
   final ChatEntity chat;
@@ -18,9 +22,7 @@ class _ChatBubbleState extends State<ChatBubble> with AutomaticKeepAliveClientMi
   bool _showMedia = false;
   Timer? _timer;
 
-  // Mencatat waktu sesi dimulai
   static final DateTime _sessionStartTime = DateTime.now();
-  // Menyimpan ID pesan yang sudah dianimasikan
   static final Set<String> _animatedMessageIds = {};
 
   @override
@@ -30,7 +32,6 @@ class _ChatBubbleState extends State<ChatBubble> with AutomaticKeepAliveClientMi
   void initState() {
     super.initState();
     
-    // BUFFER PERBAIKAN: Beri toleransi 15 detik untuk mengatasi delay Firebase
     bool isNewMessage = widget.chat.timestamp.isAfter(_sessionStartTime.subtract(const Duration(seconds: 15)));
     bool hasBeenAnimated = _animatedMessageIds.contains(widget.chat.id);
 
@@ -123,91 +124,194 @@ class _ChatBubbleState extends State<ChatBubble> with AutomaticKeepAliveClientMi
 
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
-        padding: const EdgeInsets.all(12),
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.85,
-        ),
-        decoration: BoxDecoration(
-          color: isUser ? Colors.blue.shade600 : Colors.white,
-          borderRadius: BorderRadius.only(
-            topLeft: const Radius.circular(16),
-            topRight: const Radius.circular(16),
-            bottomLeft: Radius.circular(isUser ? 16 : 0),
-            bottomRight: Radius.circular(isUser ? 0 : 16),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 5,
-              offset: const Offset(0, 2),
+      child: Column(
+        crossAxisAlignment: isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        children: [
+          // 1. GELEMBUNG CHAT UTAMA
+          Container(
+            margin: EdgeInsets.only(
+              top: 6,
+              bottom: isUser ? 6 : 2, 
+              left: 16,
+              right: 16,
             ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              _displayedText,
-              style: TextStyle(
-                color: isUser ? Colors.white : Colors.black87,
-                fontSize: 15,
-                height: 1.4,
+            padding: const EdgeInsets.all(12),
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.of(context).size.width * 0.85,
+            ),
+            decoration: BoxDecoration(
+              color: isUser ? Colors.blue.shade600 : Colors.white,
+              borderRadius: BorderRadius.only(
+                topLeft: const Radius.circular(16),
+                topRight: const Radius.circular(16),
+                bottomLeft: Radius.circular(isUser ? 16 : 0),
+                bottomRight: Radius.circular(isUser ? 0 : 16),
               ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 5,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
-            
-            if (!isUser && (hasImages || hasMap))
-              AnimatedOpacity(
-                opacity: _showMedia ? 1.0 : 0.0,
-                duration: const Duration(milliseconds: 1000), 
-                curve: Curves.easeIn,
-                child: _showMedia
-                    ? Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (hasImages)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 12.0),
-                              child: CarouselSlider(
-                                options: CarouselOptions(
-                                  height: 180,
-                                  enableInfiniteScroll: widget.chat.imageUrls!.length > 1,
-                                  enlargeCenterPage: true,
-                                  viewportFraction: 0.9,
-                                ),
-                                items: widget.chat.imageUrls!.asMap().entries.map((entry) {
-                                  int idx = entry.key;
-                                  String url = entry.value;
-                                  return GestureDetector(
-                                    onTap: () => _showImagePreview(context, widget.chat.imageUrls!, idx),
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(12),
-                                      child: Image.network(
-                                        url,
-                                        fit: BoxFit.cover,
-                                        width: double.infinity,
-                                        errorBuilder: (context, error, stackTrace) => Container(
-                                          color: Colors.grey.shade300,
-                                          child: const Center(child: Icon(Icons.broken_image, color: Colors.grey)),
-                                        ),
-                                      ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _displayedText,
+                  style: TextStyle(
+                    color: isUser ? Colors.white : Colors.black87,
+                    fontSize: 15,
+                    height: 1.4,
+                  ),
+                ),
+                
+                // MEDIA (Gambar & Map) DI DALAM BUBBLE
+                if (!isUser && (hasImages || hasMap))
+                  AnimatedOpacity(
+                    opacity: _showMedia ? 1.0 : 0.0,
+                    duration: const Duration(milliseconds: 1000), 
+                    curve: Curves.easeIn,
+                    child: _showMedia
+                        ? Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (hasImages)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 12.0),
+                                  child: CarouselSlider(
+                                    options: CarouselOptions(
+                                      height: 180,
+                                      enableInfiniteScroll: widget.chat.imageUrls!.length > 1,
+                                      enlargeCenterPage: true,
+                                      viewportFraction: 0.9,
                                     ),
-                                  );
-                                }).toList(),
+                                    items: widget.chat.imageUrls!.asMap().entries.map((entry) {
+                                      int idx = entry.key;
+                                      String url = entry.value;
+                                      return GestureDetector(
+                                        onTap: () => _showImagePreview(context, widget.chat.imageUrls!, idx),
+                                        child: ClipRRect(
+                                          borderRadius: BorderRadius.circular(12),
+                                          child: Image.network(
+                                            url,
+                                            fit: BoxFit.cover,
+                                            width: double.infinity,
+                                            errorBuilder: (context, error, stackTrace) => Container(
+                                              color: Colors.grey.shade300,
+                                              child: const Center(child: Icon(Icons.broken_image, color: Colors.grey)),
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    }).toList(),
+                                  ),
+                                ),
+                              if (hasMap)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 12.0),
+                                  child: MapPreviewWidget(keyword: widget.chat.mapKeyword!),
+                                ),
+                            ],
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+              ],
+            ),
+          ),
+
+          // 2. TOMBOL ACTION DI LUAR GELEMBUNG (Salin & Dengarkan)
+          if (!isUser)
+            AnimatedOpacity(
+              opacity: _showMedia ? 1.0 : 0.0,
+              duration: const Duration(milliseconds: 500),
+              child: _showMedia
+                  ? Padding(
+                      padding: const EdgeInsets.only(left: 20.0, bottom: 8.0, top: 2.0),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // TOMBOL SALIN (COPY)
+                          InkWell(
+                            borderRadius: BorderRadius.circular(12),
+                            onTap: () {
+                              Clipboard.setData(ClipboardData(text: widget.chat.text));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: const Text('Pesan berhasil disalin!'),
+                                  duration: const Duration(seconds: 2),
+                                  behavior: SnackBarBehavior.floating,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                ),
+                              );
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.copy, size: 16, color: Colors.grey.shade600),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    "Salin",
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey.shade600,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                          if (hasMap)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 12.0),
-                              child: MapPreviewWidget(keyword: widget.chat.mapKeyword!),
-                            ),
+                          ),
+                          
+                          const SizedBox(width: 12), // Jarak antara Salin dan Dengarkan
+                          
+                          // TOMBOL DENGARKAN (TTS)
+                          Consumer<ChatProvider>(
+                            builder: (context, provider, child) {
+                              final isPlaying = provider.playingMessageId == widget.chat.id;
+                              
+                              return InkWell(
+                                borderRadius: BorderRadius.circular(12),
+                                onTap: () {
+                                  provider.toggleAudio(widget.chat.id, widget.chat.text);
+                                },
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      isPlaying 
+                                          ? Icon(Icons.stop_circle_rounded, size: 18, color: Colors.red.shade400)
+                                          : SvgPicture.asset(
+                                              'assets/speaker.svg',
+                                              width: 16,
+                                              height: 16,
+                                              colorFilter: ColorFilter.mode(Colors.grey.shade600, BlendMode.srcIn),
+                                            ),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        isPlaying ? "Hentikan" : "Dengarkan",
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: isPlaying ? Colors.red.shade400 : Colors.grey.shade600,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
                         ],
-                      )
-                    : const SizedBox.shrink(),
-              ),
-          ],
-        ),
+                      ),
+                    )
+                  : const SizedBox.shrink(),
+            ),
+        ],
       ),
     );
   }
