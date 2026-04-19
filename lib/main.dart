@@ -5,9 +5,10 @@ import 'package:provider/provider.dart';
 import 'package:banten_explorer/core/network/api_client.dart';
 import 'package:banten_explorer/data/repositories/chat_repository_impl.dart';
 import 'package:banten_explorer/presentation/services/speech_service.dart';
-import 'package:banten_explorer/presentation/services/tts_service.dart'; // <-- IMPOR BARU
+import 'package:banten_explorer/presentation/services/tts_service.dart';
 import 'package:banten_explorer/presentation/providers/chat_provider.dart';
-import 'package:banten_explorer/presentation/screens/chat_screen.dart';
+import 'package:banten_explorer/presentation/providers/theme_provider.dart';
+import 'package:banten_explorer/presentation/screens/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -71,7 +72,7 @@ class BantenExplorerApp extends StatelessWidget {
       firestore: firestore,
     );
     final speechService = SpeechService();
-    final ttsService = TtsService(); // <-- INISIALISASI SERVICE TTS
+    final ttsService = TtsService();
 
     return MultiProvider(
       providers: [
@@ -79,24 +80,44 @@ class BantenExplorerApp extends StatelessWidget {
           create: (_) => ChatProvider(
             chatRepository: chatRepository,
             speechService: speechService,
-            ttsService: ttsService, // <-- INJEKSI KE PROVIDER
+            ttsService: ttsService,
           ),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => ThemeProvider(),
         ),
       ],
-      child: MaterialApp(
-        title: 'Banten Explorer',
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          primarySwatch: Colors.blue,
-          scaffoldBackgroundColor: Colors.white,
-          visualDensity: VisualDensity.adaptivePlatformDensity,
-          textSelectionTheme: TextSelectionThemeData(
-          cursorColor: Colors.blue.shade700,
-          selectionColor: Colors.blue.shade200,
-          selectionHandleColor: Colors.blue.shade700
-          ),
-        ),
-        home: const ChatScreen(),
+      child: Consumer<ThemeProvider>(
+        builder: (context, themeProvider, child) {
+          return MaterialApp(
+            title: 'Banten Explorer',
+            debugShowCheckedModeBanner: false,
+            themeMode: themeProvider.themeMode,
+            theme: ThemeData(
+              brightness: Brightness.light,
+              primarySwatch: Colors.blue,
+              scaffoldBackgroundColor: Colors.grey.shade50,
+              visualDensity: VisualDensity.adaptivePlatformDensity,
+              textSelectionTheme: TextSelectionThemeData(
+                cursorColor: Colors.blue.shade700,
+                selectionColor: Colors.blue.shade200,
+                selectionHandleColor: Colors.blue.shade700
+              ),
+            ),
+            darkTheme: ThemeData(
+              brightness: Brightness.dark,
+              primarySwatch: Colors.blue,
+              scaffoldBackgroundColor: const Color(0xFF121212),
+              visualDensity: VisualDensity.adaptivePlatformDensity,
+              textSelectionTheme: TextSelectionThemeData(
+                cursorColor: Colors.blue.shade300,
+                selectionColor: Colors.blue.withOpacity(0.5),
+                selectionHandleColor: Colors.blue.shade300
+              ),
+            ),
+            home: const SplashScreen(), 
+          );
+        },
       ),
     );
   }

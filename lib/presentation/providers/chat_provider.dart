@@ -10,9 +10,12 @@ class ChatProvider extends ChangeNotifier {
   final SpeechService speechService;
   final TtsService ttsService;
 
-  // FITUR BARU: Melacak ID pesan yang sedang diputar
   String? _playingMessageId;
   String? get playingMessageId => _playingMessageId;
+
+  // STATE BARU: Menyimpan bahasa STT yang dipilih user
+  String _selectedLanguage = 'id_ID';
+  String get selectedLanguage => _selectedLanguage;
 
   ChatProvider({
     required this.chatRepository,
@@ -22,7 +25,6 @@ class ChatProvider extends ChangeNotifier {
     _initSpeech();
     _listenToHistory();
 
-    // Reset state play/stop ketika audio alami selesai
     ttsService.setCompletionHandler(() {
       _playingMessageId = null;
       notifyListeners();
@@ -54,15 +56,18 @@ class ChatProvider extends ChangeNotifier {
     });
   }
 
-  // FITUR BARU: Toggle Play / Stop berdasarkan ID Pesan
+  // FUNGSI BARU: Mengubah bahasa STT
+  void setSpeechLanguage(String localeCode) {
+    _selectedLanguage = localeCode;
+    notifyListeners();
+  }
+
   Future<void> toggleAudio(String messageId, String text) async {
     if (_playingMessageId == messageId) {
-      // Jika yang di-klik adalah pesan yang sedang main -> STOP
       await ttsService.stop();
       _playingMessageId = null;
       notifyListeners();
     } else {
-      // Jika klik pesan lain -> STOP yang lama, PLAY yang baru
       await ttsService.stop();
       _playingMessageId = messageId;
       notifyListeners();
@@ -73,7 +78,6 @@ class ChatProvider extends ChangeNotifier {
   Future<void> sendMessage(String text) async {
     if (text.trim().isEmpty) return;
 
-    // Hentikan suara AI jika user mengirim pesan baru
     await ttsService.stop();
     _playingMessageId = null;
 
@@ -116,7 +120,6 @@ class ChatProvider extends ChangeNotifier {
       }
       notifyListeners();
     } else {
-      // Hentikan suara AI jika user menyalakan mikrofon
       await ttsService.stop();
       _playingMessageId = null;
 
@@ -124,10 +127,14 @@ class ChatProvider extends ChangeNotifier {
       _recognizedText = '';
       notifyListeners();
 
-      speechService.startListening((text) {
-        _recognizedText = text;
-        notifyListeners();
-      });
+      // INJEKSI LOCALE ID KE SERVICE
+      speechService.startListening(
+        (text) {
+          _recognizedText = text;
+          notifyListeners();
+        },
+        localeId: _selectedLanguage,
+      );
     }
   }
 

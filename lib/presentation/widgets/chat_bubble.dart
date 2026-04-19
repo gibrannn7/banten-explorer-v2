@@ -1,12 +1,13 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter/services.dart'; // IMPORT HAPTIC FEEDBACK
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 import 'package:banten_explorer/domain/entities/chat_entity.dart';
 import 'package:banten_explorer/presentation/widgets/map_preview_widget.dart';
 import 'package:banten_explorer/presentation/providers/chat_provider.dart';
+import 'package:banten_explorer/presentation/providers/theme_provider.dart';
 
 class ChatBubble extends StatefulWidget {
   final ChatEntity chat;
@@ -121,6 +122,8 @@ class _ChatBubbleState extends State<ChatBubble> with AutomaticKeepAliveClientMi
     final isUser = widget.chat.isUser;
     final hasImages = widget.chat.imageUrls != null && widget.chat.imageUrls!.isNotEmpty;
     final hasMap = !isUser && widget.chat.showMap && widget.chat.mapKeyword != null;
+    
+    final isDark = Provider.of<ThemeProvider>(context).isDarkMode;
 
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
@@ -140,16 +143,16 @@ class _ChatBubbleState extends State<ChatBubble> with AutomaticKeepAliveClientMi
               maxWidth: MediaQuery.of(context).size.width * 0.85,
             ),
             decoration: BoxDecoration(
-              color: isUser ? Colors.blue.shade600 : Colors.white,
-              borderRadius: BorderRadius.only(
-                topLeft: const Radius.circular(16),
-                topRight: const Radius.circular(16),
-                bottomLeft: Radius.circular(isUser ? 16 : 0),
-                bottomRight: Radius.circular(isUser ? 0 : 16),
+              color: isUser 
+                  ? (isDark ? Colors.blue.shade700 : Colors.blue.shade600) 
+                  : (isDark ? const Color(0xFF1E1E1E) : Colors.white),
+              borderRadius: BorderRadius.circular(18).copyWith(
+                bottomLeft: Radius.circular(isUser ? 18 : 0),
+                bottomRight: Radius.circular(isUser ? 0 : 18),
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withOpacity(isDark ? 0.2 : 0.05),
                   blurRadius: 5,
                   offset: const Offset(0, 2),
                 ),
@@ -161,7 +164,9 @@ class _ChatBubbleState extends State<ChatBubble> with AutomaticKeepAliveClientMi
                 Text(
                   _displayedText,
                   style: TextStyle(
-                    color: isUser ? Colors.white : Colors.black87,
+                    color: isUser 
+                        ? Colors.white 
+                        : (isDark ? Colors.white.withOpacity(0.9) : Colors.black87),
                     fontSize: 15,
                     height: 1.4,
                   ),
@@ -199,8 +204,10 @@ class _ChatBubbleState extends State<ChatBubble> with AutomaticKeepAliveClientMi
                                             fit: BoxFit.cover,
                                             width: double.infinity,
                                             errorBuilder: (context, error, stackTrace) => Container(
-                                              color: Colors.grey.shade300,
-                                              child: const Center(child: Icon(Icons.broken_image, color: Colors.grey)),
+                                              color: isDark ? Colors.grey.shade800 : Colors.grey.shade300,
+                                              child: Center(
+                                                child: Icon(Icons.broken_image, color: isDark ? Colors.grey.shade600 : Colors.grey)
+                                              ),
                                             ),
                                           ),
                                         ),
@@ -236,28 +243,21 @@ class _ChatBubbleState extends State<ChatBubble> with AutomaticKeepAliveClientMi
                           InkWell(
                             borderRadius: BorderRadius.circular(12),
                             onTap: () {
+                              HapticFeedback.lightImpact(); // Getaran saat disalin
                               Clipboard.setData(ClipboardData(text: widget.chat.text));
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: const Text('Pesan berhasil disalin!'),
-                                  duration: const Duration(seconds: 2),
-                                  behavior: SnackBarBehavior.floating,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                                ),
-                              );
                             },
                             child: Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(Icons.copy, size: 16, color: Colors.grey.shade600),
+                                  Icon(Icons.copy, size: 16, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600),
                                   const SizedBox(width: 6),
                                   Text(
                                     "Salin",
                                     style: TextStyle(
                                       fontSize: 12,
-                                      color: Colors.grey.shade600,
+                                      color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
@@ -266,7 +266,7 @@ class _ChatBubbleState extends State<ChatBubble> with AutomaticKeepAliveClientMi
                             ),
                           ),
                           
-                          const SizedBox(width: 12), // Jarak antara Salin dan Dengarkan
+                          const SizedBox(width: 12),
                           
                           // TOMBOL DENGARKAN (TTS)
                           Consumer<ChatProvider>(
@@ -276,6 +276,7 @@ class _ChatBubbleState extends State<ChatBubble> with AutomaticKeepAliveClientMi
                               return InkWell(
                                 borderRadius: BorderRadius.circular(12),
                                 onTap: () {
+                                  HapticFeedback.lightImpact(); // Getaran saat tombol TTS ditekan
                                   provider.toggleAudio(widget.chat.id, widget.chat.text);
                                 },
                                 child: Padding(
@@ -289,14 +290,19 @@ class _ChatBubbleState extends State<ChatBubble> with AutomaticKeepAliveClientMi
                                               'assets/speaker.svg',
                                               width: 16,
                                               height: 16,
-                                              colorFilter: ColorFilter.mode(Colors.grey.shade600, BlendMode.srcIn),
+                                              colorFilter: ColorFilter.mode(
+                                                isDark ? Colors.grey.shade400 : Colors.grey.shade600, 
+                                                BlendMode.srcIn
+                                              ),
                                             ),
                                       const SizedBox(width: 6),
                                       Text(
                                         isPlaying ? "Hentikan" : "Dengarkan",
                                         style: TextStyle(
                                           fontSize: 12,
-                                          color: isPlaying ? Colors.red.shade400 : Colors.grey.shade600,
+                                          color: isPlaying 
+                                              ? Colors.red.shade400 
+                                              : (isDark ? Colors.grey.shade400 : Colors.grey.shade600),
                                           fontWeight: FontWeight.w600,
                                         ),
                                       ),

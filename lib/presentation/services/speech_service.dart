@@ -8,7 +8,8 @@ class SpeechService {
     return hasSpeech;
   }
 
-  void startListening(Function(String) onResult) async {
+  // MENERIMA PARAMETER LOCALE ID
+  void startListening(Function(String) onResult, {String localeId = "id_ID"}) async {
     await _speech.listen(
       onResult: (result) {
         onResult(result.recognizedWords);
@@ -17,7 +18,7 @@ class SpeechService {
         partialResults: true,
         cancelOnError: true,
       ),
-      localeId: "id_ID",
+      localeId: localeId, // MENGGUNAKAN LOCALE DINAMIS
     );
   }
 
