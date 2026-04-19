@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "543336841851",
+    "project_id": "explore-banten-df485",
+    "storage_bucket": "explore-banten-df485.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:543336841851:android:b11c53ab8052fa5afe98de",
+        "android_client_info": {
+          "package_name": "com.example.banten_explorer"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCWghy9xYDCTDarg5tN4_aMvcU6c9hhXZ8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
