@@ -9,14 +9,17 @@ class ChatRepositoryImpl implements ChatRepository {
   final FirebaseFirestore firestore;
   final String sessionId = 'sesi_prototipe_01';
 
-  ChatRepositoryImpl({
-    required this.apiClient,
-    required this.firestore,
-  });
+  ChatRepositoryImpl({required this.apiClient, required this.firestore});
 
   @override
-  Future<ChatEntity> sendMessageToServer(String message) async {
-    final Map<String, dynamic> responseData = await apiClient.sendMessage(message);
+  Future<ChatEntity> sendMessageToServer(
+    String message,
+    String language,
+  ) async {
+    final Map<String, dynamic> responseData = await apiClient.sendMessage(
+      message,
+      language,
+    );
     final ChatResponseModel model = ChatResponseModel.fromJson(responseData);
 
     return ChatEntity(
@@ -38,14 +41,14 @@ class ChatRepositoryImpl implements ChatRepository {
         .collection('messages')
         .doc(chat.id)
         .set({
-      'id': chat.id,
-      'text': chat.text,
-      'isUser': chat.isUser,
-      'timestamp': chat.timestamp.toIso8601String(),
-      'showMap': chat.showMap,
-      'mapKeyword': chat.mapKeyword,
-      'imageUrls': chat.imageUrls,
-    });
+          'id': chat.id,
+          'text': chat.text,
+          'isUser': chat.isUser,
+          'timestamp': chat.timestamp.toIso8601String(),
+          'showMap': chat.showMap,
+          'mapKeyword': chat.mapKeyword,
+          'imageUrls': chat.imageUrls,
+        });
   }
 
   @override
@@ -57,23 +60,58 @@ class ChatRepositoryImpl implements ChatRepository {
         .orderBy('timestamp', descending: true)
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs.map((doc) {
-        final data = doc.data();
-        List<String>? parsedUrls;
-        if (data['imageUrls'] != null) {
-          parsedUrls = List<String>.from(data['imageUrls']);
-        }
-        
-        return ChatEntity(
-          id: data['id'] as String,
-          text: data['text'] as String,
-          isUser: data['isUser'] as bool,
-          timestamp: DateTime.parse(data['timestamp'] as String),
-          showMap: data['showMap'] as bool? ?? false,
-          mapKeyword: data['mapKeyword'] as String?,
-          imageUrls: parsedUrls,
-        );
-      }).toList();
-    });
+          return snapshot.docs.map((doc) {
+            final data = doc.data();
+            List<String>? parsedUrls;
+            if (data['imageUrls'] != null) {
+              parsedUrls = List<String>.from(data['imageUrls']);
+            }
+
+            return ChatEntity(
+              id: data['id'] as String,
+              text: data['text'] as String,
+              isUser: data['isUser'] as bool,
+              timestamp: DateTime.parse(data['timestamp'] as String),
+              showMap: data['showMap'] as bool? ?? false,
+              mapKeyword: data['mapKeyword'] as String?,
+              imageUrls: parsedUrls,
+            );
+          }).toList();
+        });
+  }
+
+  @override
+  Future<List<ChatEntity>> sendAudioMessageToServer(
+    String filePath,
+    String language,
+  ) async {
+    final Map<String, dynamic> responseData = await apiClient.sendAudioMessage(
+      filePath,
+      language,
+    );
+
+    final String userText = responseData['user_text'] ?? "Audio tidak dikenali";
+    final Map<String, dynamic> botData = responseData['bot_response'] ?? {};
+
+    final ChatResponseModel model = ChatResponseModel.fromJson(botData);
+
+    final userChat = ChatEntity(
+      id: DateTime.now().millisecondsSinceEpoch.toString() + "_user",
+      text: userText,
+      isUser: true,
+      timestamp: DateTime.now(),
+    );
+
+    final botChat = ChatEntity(
+      id: DateTime.now().millisecondsSinceEpoch.toString() + "_bot",
+      text: model.pesan,
+      isUser: false,
+      timestamp: DateTime.now().add(const Duration(milliseconds: 100)),
+      showMap: model.tampilkanMap,
+      mapKeyword: model.keywordLokasi,
+      imageUrls: model.gambarUrls,
+    );
+
+    return [userChat, botChat];
   }
 }

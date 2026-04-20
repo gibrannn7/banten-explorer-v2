@@ -13,7 +13,6 @@ class ChatProvider extends ChangeNotifier {
   String? _playingMessageId;
   String? get playingMessageId => _playingMessageId;
 
-  // STATE BARU: Menyimpan bahasa STT yang dipilih user
   String _selectedLanguage = 'id_ID';
   String get selectedLanguage => _selectedLanguage;
 
@@ -40,6 +39,9 @@ class ChatProvider extends ChangeNotifier {
   bool _isListening = false;
   bool get isListening => _isListening;
 
+  bool _isS2SProcessing = false;
+  bool get isS2SProcessing => _isS2SProcessing;
+
   String _recognizedText = '';
   String get recognizedText => _recognizedText;
 
@@ -56,7 +58,6 @@ class ChatProvider extends ChangeNotifier {
     });
   }
 
-  // FUNGSI BARU: Mengubah bahasa STT
   void setSpeechLanguage(String localeCode) {
     _selectedLanguage = localeCode;
     notifyListeners();
@@ -75,11 +76,17 @@ class ChatProvider extends ChangeNotifier {
     }
   }
 
+  // FUNGSI BARU UNTUK MERESET AUDIO SAAT KELUAR S2S
+  Future<void> stopAudio() async {
+    await ttsService.stop();
+    _playingMessageId = null;
+    notifyListeners();
+  }
+
   Future<void> sendMessage(String text) async {
     if (text.trim().isEmpty) return;
 
-    await ttsService.stop();
-    _playingMessageId = null;
+    await stopAudio(); // Hentikan audio sebelumnya
 
     final userMessage = ChatEntity(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -95,7 +102,11 @@ class ChatProvider extends ChangeNotifier {
     await chatRepository.saveChatToHistory(userMessage);
 
     try {
-      final botResponse = await chatRepository.sendMessageToServer(text);
+      // KIRIM BAHASA KE BACKEND
+      final botResponse = await chatRepository.sendMessageToServer(
+        text,
+        _selectedLanguage,
+      );
       await chatRepository.saveChatToHistory(botResponse);
     } catch (e) {
       final errorMessage = ChatEntity(
@@ -120,23 +131,53 @@ class ChatProvider extends ChangeNotifier {
       }
       notifyListeners();
     } else {
-      await ttsService.stop();
-      _playingMessageId = null;
+      await stopAudio();
 
       _isListening = true;
       _recognizedText = '';
       notifyListeners();
 
-      // INJEKSI LOCALE ID KE SERVICE
-      speechService.startListening(
-        (text) {
-          _recognizedText = text;
-          notifyListeners();
-        },
-        localeId: _selectedLanguage,
-      );
+      speechService.startListening((text) {
+        _recognizedText = text;
+        notifyListeners();
+      }, localeId: _selectedLanguage);
     }
   }
+
+  Future<void> processS2SAudio(String filePath) async {
+    _isS2SProcessing = true;
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      // KIRIM BAHASA KE BACKEND
+      final result = await chatRepository.sendAudioMessageToServer(
+        filePath,
+        _selectedLanguage,
+      );
+      final userChat = result[0];
+      final botChat = result[1];
+
+      _messages.insert(0, userChat);
+      await chatRepository.saveChatToHistory(userChat);
+
+      _messages.insert(0, botChat);
+      await chatRepository.saveChatToHistory(botChat);
+
+      await ttsService.stop();
+      _playingMessageId = botChat.id;
+      _isS2SProcessing = false;
+      _isLoading = false;
+      notifyListeners();
+
+      await ttsService.speak(botChat.text);
+    } catch (e) {
+      _isS2SProcessing = false;
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+  
 
   @override
   void dispose() {

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:banten_explorer/presentation/providers/chat_provider.dart';
 import 'package:banten_explorer/presentation/providers/theme_provider.dart';
+import 'package:banten_explorer/presentation/screens/speech_to_speech_screen.dart';
 
 class ChatInputField extends StatefulWidget {
   const ChatInputField({Key? key}) : super(key: key);
@@ -71,12 +72,21 @@ class _ChatInputFieldState extends State<ChatInputField> {
                 minLines: 1,
                 maxLines: 5,
                 keyboardType: TextInputType.multiline,
-                cursorColor: isDark ? Colors.blue.shade300 : Colors.blue.shade700,
+                cursorColor: isDark
+                    ? Colors.blue.shade300
+                    : Colors.blue.shade700,
                 textAlignVertical: TextAlignVertical.center,
-                style: TextStyle(color: isDark ? Colors.white : Colors.black87, fontSize: 15),
+                style: TextStyle(
+                  color: isDark ? Colors.white : Colors.black87,
+                  fontSize: 15,
+                ),
                 decoration: InputDecoration(
-                  hintText: isListening ? 'Mendengarkan...' : 'Ketik pertanyaan...',
-                  hintStyle: TextStyle(color: isDark ? Colors.grey.shade600 : Colors.grey.shade400),
+                  hintText: isListening
+                      ? 'Mendengarkan...'
+                      : 'Ketik pertanyaan...',
+                  hintStyle: TextStyle(
+                    color: isDark ? Colors.grey.shade600 : Colors.grey.shade400,
+                  ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(24),
                     borderSide: BorderSide.none,
@@ -84,19 +94,50 @@ class _ChatInputFieldState extends State<ChatInputField> {
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(24),
                     borderSide: BorderSide(
-                      color: isDark ? Colors.blue.shade500 : Colors.blue.shade300, 
-                      width: 1.2
+                      color: isDark
+                          ? Colors.blue.shade500
+                          : Colors.blue.shade300,
+                      width: 1.2,
                     ),
                   ),
                   filled: true,
-                  fillColor: isDark ? const Color(0xFF2C2C2C) : Colors.grey.shade100,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                  fillColor: isDark
+                      ? const Color(0xFF2C2C2C)
+                      : Colors.grey.shade100,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 14,
+                  ),
                 ),
               ),
             ),
-            
-            const SizedBox(width: 12),
-            
+
+            const SizedBox(width: 8),
+
+            Padding(
+              padding: const EdgeInsets.only(bottom: 2.0),
+              child: IconButton(
+                icon: Icon(
+                  Icons.graphic_eq,
+                  color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
+                  size: 24,
+                ),
+                onPressed: () {
+                  HapticFeedback.lightImpact();
+                  if (chatProvider.isListening)
+                    chatProvider.toggleListening(_controller);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const SpeechToSpeechScreen(),
+                    ),
+                  );
+                },
+              ),
+            ),
+
+            const SizedBox(width: 8),
+
             // TOMBOL MIC / SEND
             Padding(
               padding: const EdgeInsets.only(bottom: 2.0),
@@ -104,43 +145,47 @@ class _ChatInputFieldState extends State<ChatInputField> {
                 duration: const Duration(milliseconds: 300),
                 curve: Curves.easeInOut,
                 decoration: BoxDecoration(
-                  // LOGIKA WARNA BARU:
-                  // 1. Jika mendengarkan -> Merah
-                  // 2. Jika Dark Mode -> Biru (kalau ada teks), Abu (kalau kosong)
-                  // 3. Jika Light Mode -> Selalu Biru Solid
                   color: isListening
                       ? Colors.red.shade500
-                      : (isDark 
-                          ? (hasText ? Colors.blue.shade500 : const Color(0xFF2C2C2C)) 
-                          : Colors.blue.shade600),
+                      : (isDark
+                            ? (hasText
+                                  ? Colors.blue.shade500
+                                  : const Color(0xFF2C2C2C))
+                            : Colors.blue.shade600),
                   shape: BoxShape.circle,
-                  boxShadow: (isListening || (hasText || !isDark)) ? [
-                    BoxShadow(
-                      color: (isListening ? Colors.red : Colors.blue).withOpacity(0.3),
-                      blurRadius: 8,
-                      offset: const Offset(0, 4),
-                    )
-                  ] : [],
+                  boxShadow: (isListening || (hasText || !isDark))
+                      ? [
+                          BoxShadow(
+                            color: (isListening ? Colors.red : Colors.blue)
+                                .withOpacity(0.3),
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ]
+                      : [],
                 ),
                 child: IconButton(
                   icon: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 200),
-                    transitionBuilder: (child, anim) => ScaleTransition(scale: anim, child: child),
+                    transitionBuilder: (child, anim) =>
+                        ScaleTransition(scale: anim, child: child),
                     child: Icon(
                       isListening
                           ? Icons.stop_rounded
-                          : (hasText ? Icons.send_rounded : Icons.mic_none_rounded),
+                          : (hasText
+                                ? Icons.send_rounded
+                                : Icons.mic_none_rounded),
                       key: ValueKey<bool>(isListening || hasText),
-                      // Icon putih, kecuali di Dark Mode saat tidak ada teks (abu-abu)
-                      color: isListening 
-                          ? Colors.white 
-                          : (isDark && !hasText ? Colors.grey.shade400 : Colors.white),
+                      color: isListening
+                          ? Colors.white
+                          : (isDark && !hasText
+                                ? Colors.grey.shade400
+                                : Colors.white),
                       size: 24,
                     ),
                   ),
                   onPressed: () {
-                    HapticFeedback.lightImpact(); // Memicu getaran saat tombol ditekan
-                    
+                    HapticFeedback.lightImpact();
                     if (isListening) {
                       chatProvider.toggleListening(_controller);
                     } else if (hasText) {
